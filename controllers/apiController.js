@@ -49,7 +49,7 @@ module.exports.getDepartmentsHandler = async (req, res) => {
     const [rows, fields] = await connection.execute(
       `SELECT department.id as id, department.name as dept_name,faculty.name as hod_name 
         FROM department join hods on department.id=hods.department_id 
-        join faculty ON faculty.id=hods.id;`
+        join faculty ON faculty.id=hods.faculty_id;`
     );
     //use these rows and join again with faculty table using id
     return res.json({
@@ -72,9 +72,10 @@ module.exports.getAllLabsHandler = async (req, res) => {
        JOIN lab_incharges ON lab_incharges.lab_id=labs.id 
        JOIN faculty ON faculty.id = lab_incharges.faculty_id`
     );
-    return res.status(200).send({
+    return res.send({
       message: "Labs fetched successfully",
       labs: rows,
+      status: 200,
     });
   } catch (error) {
     console.log("Error in getAllLabsHandler:", error.message);
@@ -96,11 +97,12 @@ module.exports.getLabsHandler = async (req, res) => {
        WHERE labs.department_id = ?`,
       [id]
     );
-    console.log("Complete Query:", rows);
+    //console.log("Complete Query:", rows);
 
-    return res.status(200).send({
+    return res.send({
       message: "Labs fetched successfully",
       labs: rows,
+      status: 200,
     });
   } catch (error) {
     console.log("Error in getLabsHandler:", error.message);

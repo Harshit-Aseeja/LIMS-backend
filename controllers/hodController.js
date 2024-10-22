@@ -25,7 +25,7 @@ module.exports.loginHandler = async (req, res) => {
         message: LOGIN_FAILED + " Email not found",
       });
     }
-    console.log(rows[0].password);
+    //console.log(rows[0].password);
     const passwordIsValid = password === rows[0].password;
 
     if (!passwordIsValid) {
@@ -95,7 +95,7 @@ module.exports.getLabsHandler = async (req, res, next) => {
 module.exports.addLabHandler = async (req, res, next) => {
   try {
     const { labName, Lab_Incharge_Email, Lab_Room, dept_name } = req.body;
-    console.log(req.body);
+    //console.log(req.body);
     const [rows, fields] = await pool.execute(
       `SELECT id FROM department WHERE name=?;`,
       [dept_name]
@@ -125,7 +125,7 @@ module.exports.addLabHandler = async (req, res, next) => {
       `SELECT name, id FROM faculty WHERE email=?;`,
       [Lab_Incharge_Email]
     );
-    console.log(lab_incharge);
+    //console.log(lab_incharge);
 
     if (lab_incharge.length === 0) {
       return res.send({
@@ -147,7 +147,7 @@ module.exports.addLabHandler = async (req, res, next) => {
     }
 
     const department_id = rows[0].id;
-    console.log(lab_incharge[0].name);
+    //console.log(lab_incharge[0].name);
     const [rows1, fields1] = await pool.execute(
       `INSERT INTO labs (name,department_id,location, lab_incharge) VALUES (?,?,?,?);`,
       [labName, department_id, "Room " + Lab_Room, lab_incharge[0].name]

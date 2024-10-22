@@ -21,7 +21,7 @@ module.exports.getInventoryHandler = async (req, res) => {
        WHERE labs.id = ?;`,
       [labId]
     );
-    console.log(rows);
+    //console.log(rows);
     return res.send({
       status: 200,
       message: "Incharge & Inventory fetched successfully",
