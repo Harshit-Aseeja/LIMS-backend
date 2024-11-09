@@ -18,7 +18,7 @@ module.exports.generateToken = async (data) => {
 module.exports.verifyToken = async (req, res, next) => {
   try {
     const data = req.headers.authorization;
-    console.log(data);
+    //console.log(data);
     await jwt.verify(data, JWT_SECRET, (err, verifiedToken) => {
       if (err) {
         return res.send({

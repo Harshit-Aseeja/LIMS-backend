@@ -67,7 +67,7 @@ module.exports.getDepartmentsHandler = async (req, res) => {
 module.exports.getAllLabsHandler = async (req, res) => {
   try {
     const [rows, fields] = await connection.execute(
-      `SELECT labs.name as labName, location, lab_id, faculty.name, faculty.email FROM labs 
+      `SELECT labs.name as labName, location, lab_id, faculty.name, faculty.email, faculty.mobile FROM labs 
        JOIN hods ON labs.department_id=hods.department_id 
        JOIN lab_incharges ON lab_incharges.lab_id=labs.id 
        JOIN faculty ON faculty.id = lab_incharges.faculty_id`
@@ -90,7 +90,7 @@ module.exports.getLabsHandler = async (req, res) => {
     //console.log(id);
 
     const [rows, fields] = await connection.execute(
-      `SELECT labs.name as labName, location, lab_id, faculty.name, faculty.email FROM labs 
+      `SELECT labs.name as labName, location, lab_id, faculty.name, faculty.email, faculty.mobile FROM labs 
        JOIN hods ON labs.department_id=hods.department_id 
        JOIN lab_incharges ON lab_incharges.lab_id=labs.id 
        JOIN faculty ON faculty.id = lab_incharges.faculty_id 

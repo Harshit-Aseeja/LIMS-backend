@@ -17,12 +17,15 @@ module.exports.createInventoryTable = async (id, connection) => {
 module.exports.createIssueTable = async (id, connection) => {
   await connection.execute(
     `CREATE TABLE IF NOT EXISTS issue_${id} (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      student_name VARCHAR(255) NOT NULL,
-      student_roll_no VARCHAR(255) NOT NULL,
-      date DATE NOT NULL,
-      items JSON NOT NULL
-    );`
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  student_roll_no VARCHAR(255) NOT NULL,
+  date DATE NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  remarks TEXT,
+  items JSON NOT NULL
+);
+`
   );
 };
 

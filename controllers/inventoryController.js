@@ -77,54 +77,6 @@ module.exports.updateInventoryHandler = async (req, res) => {
   }
 };
 
-module.exports.issueHandler = async (req, res) => {
-  try {
-    const { student_name, student_roll_no, date, issued_items, lab_id } =
-      req.body;
-    const connection = pool;
-
-    // Ensure tables exist
-    await createInventoryTable(lab_id, connection);
-    await createIssueTable(lab_id, connection);
-
-    for (let i = 0; i < issued_items.length; i++) {
-      const [rows, fields] = await connection.execute(
-        `SELECT * FROM inventory_${lab_id} WHERE id=?`,
-        [issued_items[i].id]
-      );
-      if (rows.length === 0) {
-        return res.send({
-          status: 400,
-          message: "Inventory not found",
-        });
-      }
-      if (rows[0].quantity < issued_items[i].quantity) {
-        return res.send({
-          status: 400,
-          message: "Not enough quantity",
-        });
-      }
-      await connection.execute(
-        `UPDATE inventory_${lab_id} SET issued_qty=issued_qty+? WHERE id=?`,
-        [issued_items[i].quantity, issued_items[i].id]
-      );
-    }
-    await connection.execute(
-      `INSERT INTO issue_${lab_id} (student_name, student_roll_no, date, items) VALUES (?, ?, ?, ?)`,
-      [student_name, student_roll_no, date, JSON.stringify(issued_items)]
-    );
-    return res.send({
-      status: 200,
-      message: "Inventory issued successfully",
-    });
-  } catch (error) {
-    return res.send({
-      status: 400,
-      message: error.message,
-    });
-  }
-};
-
 module.exports.addInventoryHandler = async (req, res) => {
   try {
     const { labId } = req.params;
