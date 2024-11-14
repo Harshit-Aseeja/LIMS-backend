@@ -3,11 +3,7 @@ const issueController = require("../controllers/issueController");
 const { verifyToken } = require("../utils/jwtAuth");
 
 // Route to fetch all issues for a specific lab
-router.get(
-  "/lab/:labId",
-  verifyToken,
-  issueController.getAllIssuesByLabHandler
-);
+router.get("/lab/:labId", verifyToken, issueController.getIssuesByLabHandler);
 
 // Route to fetch all issues made by a specific student across all labs
 router.get(
@@ -25,5 +21,12 @@ router.get(
 
 // Route to create a new issue
 router.post("/create", verifyToken, issueController.createIssueHandler);
+
+// Route to update the status of an issue
+router.patch(
+  "/:issueId/status",
+  verifyToken,
+  issueController.updateIssueStatusHandler
+);
 
 module.exports = router;
