@@ -1,8 +1,43 @@
 const pool = require("../utils/db-config");
+const sendEmail = require("../utils/emailService");
+
+module.exports.sendEmailHandler = async (req, res) => {
+  try {
+    const { to, subject, body } = req.body;
+
+    if (!to || !subject || !body) {
+      return res.status(400).send({
+        status: 400,
+        message: "Missing required fields: 'to', 'subject', 'body'",
+      });
+    }
+
+    sendEmail(to, subject, body);
+
+    return res.send({
+      status: 200,
+      message: "Email sent successfully",
+    });
+  } catch (error) {
+    console.error("Error sending email:", error.message);
+    return res.status(500).send({
+      status: 500,
+      message: "Error sending email",
+    });
+  }
+};
+
+const getStudentEmail = async (student_id) => {
+  const [result] = await pool.execute(
+    `SELECT email FROM student WHERE roll_number = ?`,
+    [student_id]
+  );
+  return result.length > 0 ? result[0].email : null;
+};
 
 module.exports.createIssueHandler = async (req, res) => {
   try {
-    const { student_id, lab_id, start_date, end_date, items, status } =
+    const { student_id, lab_id, start_date, end_date, items, status, reason } =
       req.body;
 
     // Get current date for `request_date` field
@@ -21,9 +56,9 @@ module.exports.createIssueHandler = async (req, res) => {
     const connection = pool;
 
     // Insert the new issue into the database
-    await connection.execute(
-      `INSERT INTO issues (student_id, lab_id, start_date, end_date, request_date, items, status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    const [result] = await connection.execute(
+      `INSERT INTO issues (student_id, lab_id, start_date, end_date, request_date, items, status, reason) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         student_id,
         lab_id,
@@ -32,8 +67,29 @@ module.exports.createIssueHandler = async (req, res) => {
         request_date,
         JSON.stringify(items),
         status,
+        reason,
       ]
     );
+
+    const issueId = result.insertId;
+
+    // Update issued quantities for each item
+    for (const item of items) {
+      await connection.execute(
+        `UPDATE inventory_${lab_id} SET issued_qty = issued_qty + ? WHERE id = ?`,
+        [item.quantity, item.inventoryId]
+      );
+    }
+
+    // Send email to student about issue creation
+    const studentEmail = await getStudentEmail(student_id);
+    if (studentEmail) {
+      sendEmail(
+        studentEmail,
+        "LNMIIT INVENTORY: Request Generated",
+        `Your request with ID ${issueId} has been created and is currently ${status}.`
+      );
+    }
 
     return res.send({
       status: 200,
@@ -64,7 +120,7 @@ module.exports.getIssuesByLabHandler = async (req, res) => {
 
     // Fetch all issues related to the provided lab_id
     const [issueRows] = await connection.execute(
-      `SELECT * FROM issues WHERE lab_id = ? ORDER BY request_date DESC`,
+      `SELECT * FROM issues WHERE lab_id = ? ORDER BY id DESC`,
       [labId]
     );
 
@@ -122,7 +178,7 @@ module.exports.getIssuesByStudentAcrossLabsHandler = async (req, res) => {
 
     // Step 1: Fetch all issues made by the student
     const [issues] = await connection.execute(
-      `SELECT id, lab_id, request_date, status, items FROM issues WHERE student_id = ? ORDER BY request_date DESC`,
+      `SELECT id, lab_id, request_date, status, items FROM issues WHERE student_id = ? ORDER BY id DESC`,
       [studentId]
     );
 
@@ -231,6 +287,33 @@ module.exports.updateIssueStatusHandler = async (req, res) => {
       });
     }
 
+    // Fetch student_id to send notification
+    const [issueRows] = await connection.execute(
+      `SELECT student_id FROM issues WHERE id = ?`,
+      [issueId]
+    );
+
+    if (issueRows.length > 0) {
+      const student_id = issueRows[0].student_id;
+      const studentEmail = await getStudentEmail(student_id);
+
+      if (studentEmail) {
+        let subject, body;
+        if (status === "ongoing") {
+          subject = "LNMIIT INVENTORY: Issue Request Approved";
+          body = `Your issue request with ID: ${issueId} has been approved. Kindly collect the items from the respective lab`;
+        } else if (status === "completed") {
+          subject = "LNMIIT INVENTORY: Items received";
+          body = `Your request with ID ${issueId} has been marked as completed. Items have been received.`;
+        } else if (status === "rejected") {
+          subject = "LNMIIT INVENTORY: Request denied";
+          body = `Your request with ID ${issueId} has been declined. Kindly contact the lab incharge for any queries`;
+        }
+
+        sendEmail(studentEmail, subject, body);
+      }
+    }
+
     return res.send({
       status: 200,
       message: `Issue with ID ${issueId} updated successfully`,
@@ -240,6 +323,128 @@ module.exports.updateIssueStatusHandler = async (req, res) => {
     return res.status(500).send({
       status: 500,
       message: "Error updating issue status",
+    });
+  }
+};
+
+module.exports.updateIssueDetailsHandler = async (req, res) => {
+  try {
+    const { issueId } = req.params;
+    const { status } = req.body;
+
+    // Validate `status` input
+    const validStatuses = ["completed", "ongoing", "rejected", "pending"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).send({
+        status: 400,
+        message:
+          "Invalid status value. Choose from 'completed', 'ongoing', 'rejected', or 'pending'.",
+      });
+    }
+
+    const connection = pool;
+
+    // Fetch the current issue details
+    const [issueRows] = await connection.execute(
+      `SELECT * FROM issues WHERE id = ?`,
+      [issueId]
+    );
+
+    if (issueRows.length === 0) {
+      return res.status(404).send({
+        status: 404,
+        message: "Issue not found",
+      });
+    }
+
+    const issue = issueRows[0];
+    const items = Array.isArray(issue.items)
+      ? issue.items
+      : JSON.parse(issue.items);
+
+    // Update the issue status in the database
+    const [result] = await connection.execute(
+      `UPDATE issues SET status = ? WHERE id = ?`,
+      [status, issueId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).send({
+        status: 404,
+        message: "Issue not found",
+      });
+    }
+
+    // If the status is "completed", update the issued quantity of each inventory item
+    if (status === "completed") {
+      for (const item of items) {
+        await connection.execute(
+          `UPDATE inventory_${issue.lab_id} SET issued_qty = issued_qty + ? WHERE id = ?`,
+          [item.quantity, item.inventoryId]
+        );
+      }
+    }
+
+    return res.send({
+      status: 200,
+      message: `Issue with ID ${issueId} updated successfully`,
+    });
+  } catch (error) {
+    console.error("Error updating issue details:", error.message);
+    return res.status(500).send({
+      status: 500,
+      message: "Error updating issue details",
+    });
+  }
+};
+
+module.exports.getIssueByIdHandler = async (req, res) => {
+  try {
+    const { issueId } = req.params;
+    const connection = pool;
+
+    // Fetch the issue by its ID
+    const [issueRows] = await connection.execute(
+      `SELECT * FROM issues WHERE id = ?`,
+      [issueId]
+    );
+
+    if (issueRows.length === 0) {
+      return res.status(404).send({
+        status: 404,
+        message: "Issue not found",
+      });
+    }
+
+    const issue = issueRows[0];
+
+    // Parse the items JSON
+    const items = Array.isArray(issue.items)
+      ? issue.items
+      : JSON.parse(issue.items);
+
+    // Fetch the inventory names for each item
+    for (const item of items) {
+      const [inventory] = await connection.execute(
+        `SELECT name FROM inventory_${issue.lab_id} WHERE id = ?`,
+        [item.inventoryId]
+      );
+      item.inventory_name =
+        inventory.length > 0 ? inventory[0].name : "Unknown";
+    }
+
+    issue.items = items;
+
+    return res.send({
+      status: 200,
+      message: `Issue with ID ${issueId} fetched successfully`,
+      issue,
+    });
+  } catch (error) {
+    console.error("Error fetching issue by ID:", error.message);
+    return res.status(500).send({
+      status: 500,
+      message: "Error fetching issue by ID",
     });
   }
 };

@@ -1,5 +1,5 @@
 const pool = require("../utils/db-config");
-const sendEmail = require("../utils/mailHelper").sendEmail;
+const sendEmail = require("../utils/emailService").sendEmail;
 const { createInventoryTable, createIssueTable } = require("../seed/inventory");
 
 module.exports.getInventoryHandler = async (req, res) => {
@@ -9,7 +9,6 @@ module.exports.getInventoryHandler = async (req, res) => {
 
     // Ensure tables exist
     await createInventoryTable(labId, connection);
-    await createIssueTable(labId, connection);
 
     const [rows, fields] = await connection.execute(
       `SELECT * FROM inventory_${labId}`
@@ -51,7 +50,6 @@ module.exports.updateInventoryHandler = async (req, res) => {
 
     // Ensure tables exist
     await createInventoryTable(labId, connection);
-    await createIssueTable(labId, connection);
 
     const [rows, fields] = await connection.execute(
       `UPDATE inventory_${labId} SET name=?, model=?, total_qty=?, maker=?, specifications=? WHERE id=?`,
@@ -85,7 +83,6 @@ module.exports.addInventoryHandler = async (req, res) => {
 
     // Ensure tables exist
     await createInventoryTable(labId, connection);
-    await createIssueTable(labId, connection);
 
     const [rows, fields] = await connection.execute(
       `INSERT INTO inventory_${labId} (name, model, total_qty, maker, specifications) VALUES (?, ?, ?, ?, ?);`,
@@ -117,7 +114,6 @@ module.exports.getIssuedInventoryHandler = async (req, res) => {
 
     // Ensure tables exist
     await createInventoryTable(labId, connection);
-    await createIssueTable(labId, connection);
 
     const [rows, fields] = await connection.execute(
       `SELECT * FROM issue_${labId} ORDER BY date DESC`

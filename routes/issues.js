@@ -29,4 +29,17 @@ router.patch(
   issueController.updateIssueStatusHandler
 );
 
+// Route to update the details of an issue (including marking as complete)
+router.patch(
+  "/:issueId",
+  verifyToken,
+  issueController.updateIssueDetailsHandler
+);
+
+// Route to fetch an issue by its ID
+router.get("/:issueId", verifyToken, issueController.getIssueByIdHandler);
+
+// Route to send an email
+router.post("/send-email", verifyToken, issueController.sendEmailHandler);
+
 module.exports = router;

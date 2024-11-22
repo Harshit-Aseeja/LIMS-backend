@@ -6,7 +6,7 @@ const {
   LOGIN_FAILED,
   LOGIN_ERROR,
 } = require("../utils/messages/login_messages");
-const { sendEmail } = require("../utils/mailHelper");
+const { sendEmail } = require("../utils/emailService");
 
 // Handles the login request from HOD
 module.exports.loginHandler = async (req, res) => {
@@ -158,20 +158,6 @@ module.exports.addLabHandler = async (req, res, next) => {
     const [rows3, fields3] = await pool.execute(
       `INSERT INTO lab_incharges (faculty_id,lab_id) VALUES (?,?);`,
       [id, lab_id]
-    );
-
-    // create a new inventory table for the lab
-    const [rows5, fields5] = await pool.execute(
-      `CREATE TABLE inventory_${lab_id} (
-        id int NOT NULL AUTO_INCREMENT,
-        name varchar(255) NOT NULL,
-        model varchar(255) NOT NULL,
-        issued_qty int NOT NULL DEFAULT 0,
-        total_qty int NOT NULL,
-        maker varchar(255) NOT NULL,
-        specifications JSON NOT NULL,
-        PRIMARY KEY (id)
-      );`
     );
 
     // send email to lab incharge to inform about the lab
